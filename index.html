@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOC Booking Master Tool</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f1f5f9;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 0);
+            background-size: 32px 32px;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+        }
+
+        /* Custom Loader */
+        .loader {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .form-input {
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-800 p-4 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-7xl space-y-8">
+        <!-- Header -->
+        <header class="text-center space-y-3 mt-4">
+            <div class="inline-flex items-center justify-center p-3 bg-brand-50 rounded-2xl mb-2">
+                <i class="fa-solid fa-bolt text-brand-600 text-2xl"></i>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+                KOC Booking Master Tool
+            </h1>
+            <p class="text-slate-500 max-w-xl mx-auto text-[15px]">
+                The ultimate toolkit for rewriting outreach messages and decoding obfuscated KOC contact info.
+            </p>
+        </header>
+
+        <!-- Global Settings -->
+        <section class="glass-panel p-6 rounded-2xl mx-auto max-w-3xl">
+            <label for="apiKey" class="block text-sm font-semibold text-slate-700 mb-2">
+                <i class="fa-solid fa-key mr-2 text-slate-400"></i>Global API Key (OpenAI or Google Gemini)
+            </label>
+            <input type="password" id="apiKey" value="" placeholder="Nhập API key tại đây (gsk_..., AIza..., sk-or-...)"
+                class="form-input w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] focus:outline-none focus:border-brand-500 focus:bg-white placeholder:text-slate-400" />
+            <p class="text-xs text-slate-400 mt-2">
+                Required for the Message Spinner. Leave blank if you only want to use Safe Mode obfuscation or the Phone
+                Decoder.
+            </p>
+        </section>
+
+        <!-- Main Workspace Area -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Card 1: Message Spinner & Obfuscator -->
+            <div class="glass-panel p-6 rounded-2xl lg:col-span-8 flex flex-col h-full">
+                <div class="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-spin text-brand-500"></i> Message Spinner & Obfuscator
+                    </h2>
+                    <label
+                        class="flex items-center gap-2 cursor-pointer select-none bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                        <input type="checkbox" id="safeMode" checked
+                            class="w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500 cursor-pointer">
+                        <span class="text-sm font-semibold text-slate-700">TikTok Safe Mode</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 flex-grow">
+                    <!-- Input -->
+                    <div class="flex flex-col h-full">
+                        <label for="originalText" class="block text-sm font-medium text-slate-600 mb-2">Original
+                            Message</label>
+                        <textarea id="originalText" rows="12"
+                            class="form-input w-full border border-slate-200 rounded-xl bg-slate-50 p-4 text-[14px] focus:outline-none focus:border-brand-500 focus:bg-white resize-none flex-grow"
+                            placeholder="Paste your original seeding/booking message here..."></textarea>
+
+                        <button id="spinBtn"
+                            class="mt-4 w-full bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed">
+                            <div id="spinBtnLoader" class="loader hidden"></div>
+                            <i id="spinBtnIcon" class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span id="spinBtnText">Generate & Spin</span>
+                        </button>
+                    </div>
+
+                    <!-- Output -->
+                    <div class="flex flex-col h-full">
+                        <label for="rewrittenText" class="block text-sm font-medium text-slate-600 mb-2">Output
+                            Message</label>
+                        <textarea id="rewrittenText" rows="12"
+                            class="form-input w-full border border-slate-200 rounded-xl bg-slate-50 p-4 text-[14px] focus:outline-none focus:border-brand-500 focus:bg-white resize-none flex-grow"
+                            placeholder="Your spun and safe message will appear here..."></textarea>
+
+                        <button id="copyMsgBtn"
+                            class="mt-4 w-full bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold py-3 border border-slate-200 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                            <i class="fa-regular fa-copy"></i> Copy Message
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Advanced Phone Decoder -->
+            <div class="glass-panel p-6 rounded-2xl lg:col-span-4 flex flex-col h-full">
+                <div class="mb-5 pb-4 border-b border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-user-secret text-rose-500"></i> Advanced Phone Decoder
+                    </h2>
+                </div>
+
+                <div class="flex flex-col flex-grow space-y-4">
+                    <!-- Input -->
+                    <div>
+                        <label for="messyBio" class="block text-sm font-medium text-slate-600 mb-2">
+                            Paste KOC Bio or Messy Number
+                        </label>
+                        <textarea id="messyBio" rows="6"
+                            class="form-input w-full border border-slate-200 rounded-xl bg-slate-50 p-4 text-[14px] focus:outline-none focus:border-brand-500 focus:bg-white resize-none"
+                            placeholder="e.g., khum 3 chính 8... or .981.234✌️✊"></textarea>
+                    </div>
+
+                    <!-- Extract Action -->
+                    <button id="extractBtn"
+                        class="w-full bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> Extract Number
+                    </button>
+
+                    <!-- Divider -->
+                    <div class="relative py-2">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-slate-200"></div>
+                        </div>
+                        <div class="relative flex justify-center"><span
+                                class="bg-white px-3 text-xs text-slate-400 uppercase tracking-widest bg-opacity-0">Result</span>
+                        </div>
+                    </div>
+
+                    <!-- Output -->
+                    <div>
+                        <label for="decodedNumber" class="block text-sm font-medium text-slate-600 mb-2">Decoded
+                            Result</label>
+                        <input type="text" id="decodedNumber" readonly
+                            class="w-full border-2 border-dashed border-emerald-300 rounded-xl bg-emerald-50 p-4 text-[18px] text-center font-bold tracking-widest text-emerald-700 outline-none"
+                            placeholder="0xxxxxxxxx" />
+                    </div>
+
+                    <!-- Copy Action -->
+                    <button id="copyPhoneBtn"
+                        class="mt-auto w-full bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold py-3 border border-slate-200 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-clipboard"></i> Copy Number
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: KOC Analytics Fetcher (Full Width) -->
+            <div class="glass-panel p-6 rounded-2xl lg:col-span-12 flex flex-col h-full mt-2">
+                <div class="mb-5 pb-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-purple-500"></i> KOC Analytics Fetcher
+                    </h2>
+                    <span
+                        class="text-xs font-semibold bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full border border-purple-200">BETA</span>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <div class="flex-grow">
+                        <label for="kocInput" class="sr-only">Enter TikTok Username or Affiliate Link</label>
+                        <input type="text" id="kocInput"
+                            class="form-input w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[15px] focus:outline-none focus:border-brand-500 focus:bg-white placeholder:text-slate-400"
+                            placeholder="Enter TikTok Username or Affiliate Link (e.g., @halinh, https://vt.tiktok.com/...)" />
+                    </div>
+                    <button id="fetchMetricsBtn"
+                        class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 min-w-[160px] disabled:opacity-75 disabled:cursor-not-allowed">
+                        <div id="fetchLoader" class="loader hidden"></div>
+                        <i id="fetchIcon" class="fa-solid fa-cloud-arrow-down"></i>
+                        <span id="fetchBtnText">Fetch Metrics</span>
+                    </button>
+                </div>
+
+                <!-- Data Display Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 relative">
+                    <!-- Overlay for empty state -->
+                    <div id="metricsEmptyState"
+                        class="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl border border-slate-100">
+                        <p class="text-sm font-medium text-slate-400"><i class="fa-solid fa-circle-info mr-1"></i>Enter
+                            a KOC & fetch to see analytics</p>
+                    </div>
+
+                    <!-- Metric Cards -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+                        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">GPV Video
+                            (VND)
+                        </div>
+                        <div id="valGpv" class="text-sm font-bold text-emerald-600">-</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+                        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">View TB
+                            (Người)
+                        </div>
+                        <div id="valAvgViews" class="text-sm font-bold text-slate-800">-</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+                        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Follow
+                        </div>
+                        <div id="valFollowers" class="text-sm font-bold text-slate-800">-</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-center shadow-sm">
+                        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Đơn
+                        </div>
+                        <div id="valItemsSold" class="text-sm font-bold text-slate-800">-</div>
+                    </div>
+                </div>
+
+                <!-- Quick Copy Action -->
+                <button id="copyRowBtn" disabled
+                    class="w-full md:w-auto md:mx-auto bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:border-slate-300 disabled:shadow-none text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border border-emerald-600">
+                    <i class="fa-solid fa-file-excel"></i> Copy Row for Sheets
+                </button>
+            </div>
+
+        </section>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-8 right-8 px-5 py-3.5 rounded-xl shadow-xl flex items-center gap-3 z-50 transition-all duration-300 opacity-0 translate-y-5 pointer-events-none max-w-md">
+        <!-- Success Icon -->
+        <div id="toastIconSuccess" class="hidden">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-xl"></i>
+        </div>
+        <!-- Error Icon -->
+        <div id="toastIconError" class="hidden">
+            <i class="fa-solid fa-circle-exclamation text-red-500 text-xl"></i>
+        </div>
+        <span id="toastMsg" class="font-medium text-sm"></span>
+    </div>
+
+    <script>
+        // DOM Elements - Feature 1
+        const apiKeyEl = document.getElementById('apiKey');
+        const originalTextEl = document.getElementById('originalText');
+        const rewrittenTextEl = document.getElementById('rewrittenText');
+        const safeModeEl = document.getElementById('safeMode');
+
+        const spinBtn = document.getElementById('spinBtn');
+        const spinBtnText = document.getElementById('spinBtnText');
+        const spinBtnIcon = document.getElementById('spinBtnIcon');
+        const spinBtnLoader = document.getElementById('spinBtnLoader');
+        const copyMsgBtn = document.getElementById('copyMsgBtn');
+
+        // DOM Elements - Feature 2
+        const messyBioEl = document.getElementById('messyBio');
+        const decodedNumberEl = document.getElementById('decodedNumber');
+        const extractBtn = document.getElementById('extractBtn');
+        const copyPhoneBtn = document.getElementById('copyPhoneBtn');
+
+        // DOM Elements - Feature 3
+        const kocInputEl = document.getElementById('kocInput');
+        const fetchMetricsBtn = document.getElementById('fetchMetricsBtn');
+        const fetchLoader = document.getElementById('fetchLoader');
+        const fetchIcon = document.getElementById('fetchIcon');
+        const fetchBtnText = document.getElementById('fetchBtnText');
+        const metricsEmptyState = document.getElementById('metricsEmptyState');
+        const copyRowBtn = document.getElementById('copyRowBtn');
+
+        // Metrics Display Elements
+        const valGpv = document.getElementById('valGpv');
+        const valAvgViews = document.getElementById('valAvgViews');
+        const valFollowers = document.getElementById('valFollowers');
+        const valItemsSold = document.getElementById('valItemsSold');
+
+        // Toast
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+        const toastIconSuccess = document.getElementById('toastIconSuccess');
+        const toastIconError = document.getElementById('toastIconError');
+
+        // Toast Logic
+        let toastTimeout;
+        function showToast(msg, type = 'success') {
+            clearTimeout(toastTimeout);
+            toastMsg.textContent = msg;
+
+            if (type === 'success') {
+                toast.className = "fixed bottom-8 right-8 px-5 py-3.5 rounded-xl shadow-xl flex items-center gap-3 z-50 transition-all duration-300 bg-slate-900 text-white transform translate-y-0 opacity-100 max-w-md";
+                toastIconSuccess.classList.remove('hidden');
+                toastIconError.classList.add('hidden');
+            } else {
+                toast.className = "fixed bottom-8 right-8 px-5 py-3.5 rounded-xl shadow-xl flex items-center gap-3 z-50 transition-all duration-300 bg-red-50 text-red-900 border border-red-200 transform translate-y-0 opacity-100 max-w-md";
+                toastIconError.classList.remove('hidden');
+                toastIconSuccess.classList.add('hidden');
+            }
+
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-5', 'opacity-0', 'pointer-events-none');
+            }, 3500);
+        }
+
+        // ==========================================
+        // FEATURE 1: MESSAGE SPINNER & OBFUSCATOR
+        // ==========================================
+        let isSpinCooldown = false;
+
+        function applyTikTokSafeMode(text) {
+            let newText = text;
+
+            // 1. Zalo Obfuscation
+            const zaloReplacements = ["ZL", "zép lào", "z.l", "zl", "da lô"];
+            newText = newText.replace(/zalo/gi, () => {
+                return zaloReplacements[Math.floor(Math.random() * zaloReplacements.length)];
+            });
+
+            // 2. Phone Number Obfuscation (9-11 digits)
+            newText = newText.replace(/\b\d{9,11}\b/g, (match) => {
+                return match.split('').join('.');
+            });
+
+            // 3. Link Obfuscation
+            newText = newText.replace(/https?:\/\//gi, '');
+            newText = newText.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+/g, (match) => {
+                if (/\d\.\d/.test(match)) return match;
+                return match.replace(/\./g, '(chấm)');
+            });
+
+            const linkReplacements = ["l!nk", "đường dẫn"];
+            newText = newText.replace(/\blink\b/gi, () => {
+                return linkReplacements[Math.floor(Math.random() * linkReplacements.length)];
+            });
+
+            return newText;
+        }
+
+        async function rewriteTextUsingLLM(text, apiKey) {
+            const isGemini = apiKey.startsWith("AIza");
+            const isOpenRouter = apiKey.startsWith("sk-or-");
+
+            const systemPrompt = "Rewrite the following Vietnamese message to sound natural and professional for a KOC booking outreach. Change the sentence structure to avoid spam detection. CRITICAL RULE: You MUST strictly retain and DO NOT alter Brand Names, Promotional details, Prices, Commission rates, and specific Requirements. Keep these facts exactly as provided.";
+
+            if (isGemini) {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        system_instruction: { parts: { text: systemPrompt } },
+                        contents: [{ parts: [{ text: text }] }]
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        const error = new Error("Lỗi 429: Quá giới hạn API của tài khoản. Vui lòng đợi 10-30 giây rồi thử lại!");
+                        error.status = 429;
+                        throw error;
+                    }
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err?.error?.message || "Google Gemini API Error");
+                }
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+
+            } else if (isOpenRouter) {
+                const url = "https://openrouter.ai/api/v1/chat/completions";
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': 'http://localhost:8000', // Optional but recommended by openrouter
+                        'X-Title': 'KOC Booking Master'
+                    },
+                    body: JSON.stringify({
+                        model: "meta-llama/llama-3.3-70b-instruct:free",
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: text }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        const error = new Error("Lỗi 429: Quá giới hạn gọi API OpenRouter. Vui lòng đợi chút rồi thử lại!");
+                        error.status = 429;
+                        throw error;
+                    }
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err?.error?.message || "OpenRouter API Error");
+                }
+                const data = await response.json();
+                return data.choices[0].message.content;
+
+            } else if (apiKey.startsWith("gsk_")) {
+                const url = "https://api.groq.com/openai/v1/chat/completions";
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: text }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        const error = new Error("Lỗi 429: Quá giới hạn gọi API Groq. Vui lòng đợi chút rồi thử lại!");
+                        error.status = 429;
+                        throw error;
+                    }
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err?.error?.message || "Groq API Error");
+                }
+                const data = await response.json();
+                return data.choices[0].message.content;
+
+            } else {
+                // OpenAI Fallback logic
+                const url = "https://api.openai.com/v1/chat/completions";
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: text }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        const error = new Error("Lỗi 429: Quá giới hạn API của tài khoản OpenAI. Vui lòng đợi 10-30 giây rồi thử lại!");
+                        error.status = 429;
+                        throw error;
+                    }
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err?.error?.message || "OpenAI API Error");
+                }
+                const data = await response.json();
+                return data.choices[0].message.content;
+            }
+        }
+
+        spinBtn.addEventListener('click', async () => {
+            if (isSpinCooldown) return;
+
+            const text = originalTextEl.value.trim();
+            const apiKey = apiKeyEl.value.trim();
+            const safeModeActive = safeModeEl.checked;
+
+            if (!text) {
+                showToast("Please enter an original message first.", "error");
+                return;
+            }
+
+            // Disable & Loading State
+            isSpinCooldown = true;
+            spinBtn.disabled = true;
+            spinBtnIcon.classList.add('hidden');
+            spinBtnLoader.classList.remove('hidden');
+            spinBtnText.textContent = "Processing...";
+            rewrittenTextEl.value = "";
+
+            try {
+                let resultingText = text;
+
+                // Call LLM
+                if (apiKey) {
+                    resultingText = await rewriteTextUsingLLM(text, apiKey);
+                }
+
+                // Apply Safe Mode
+                if (safeModeActive) {
+                    resultingText = applyTikTokSafeMode(resultingText);
+                }
+
+                rewrittenTextEl.value = resultingText.trim();
+                showToast("Message successfully processed!");
+
+            } catch (error) {
+                showToast(error.message || "An error occurred during processing.", "error");
+            } finally {
+                // Cooldown State
+                spinBtnLoader.classList.add('hidden');
+                let secondsLeft = 10;
+                spinBtnText.textContent = `Cooldown... ${secondsLeft}s`;
+
+                const countdownInterval = setInterval(() => {
+                    secondsLeft--;
+                    if (secondsLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        isSpinCooldown = false;
+                        spinBtn.disabled = false;
+                        spinBtnIcon.classList.remove('hidden');
+                        spinBtnText.textContent = "Generate & Spin";
+                    } else {
+                        spinBtnText.textContent = `Cooldown... ${secondsLeft}s`;
+                    }
+                }, 1000);
+            }
+        });
+
+        copyMsgBtn.addEventListener('click', () => {
+            const text = rewrittenTextEl.value;
+            if (!text) {
+                showToast("No message to copy!", "error");
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Message copied to clipboard!");
+            });
+        });
+
+        // ==========================================
+        // FEATURE 2: ADVANCED PHONE DECODER
+        // ==========================================
+        extractBtn.addEventListener('click', () => {
+            let str = messyBioEl.value;
+
+            if (!str.trim()) {
+                showToast("Please paste some text to decode first.", "error");
+                return;
+            }
+
+            // First, basic text normalizations
+            let originalStr = str.normalize('NFKC').toLowerCase();
+
+            // Replace spelled out numbers and emojis
+            const replacements = {
+                'khum': '0', 'không': '0', 'khong': '0', '✊': '0',
+                'một': '1', 'mot': '1', '☝️': '1',
+                'hai': '2', '✌️': '2',
+                'ba': '3', '🤟': '3',
+                'bốn': '4', 'bon': '4',
+                'năm': '5', 'nam': '5', '🖐️': '5', '✋': '5',
+                'sáu': '6', 'sau': '6',
+                'bảy': '7', 'bay': '7', 'bẩy': '7',
+                'tám': '8', 'tam': '8',
+                'chín': '9', 'chin': '9', 'chính': '9'
+            };
+
+            const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
+            for (const key of sortedKeys) {
+                originalStr = originalStr.replace(new RegExp(key, 'g'), replacements[key]);
+            }
+
+            // Function to clean a string and check for valid phone numbers
+            const extractValidPhone = (inputStr) => {
+                let cleaned = inputStr.replace(/[^0-9]/g, '');
+                if (cleaned.startsWith('84') && cleaned.length === 11) {
+                    cleaned = '0' + cleaned.substring(2);
+                } else if (cleaned.length === 9 && !cleaned.startsWith('0')) {
+                    cleaned = '0' + cleaned;
+                }
+
+                // Return if exactly 10 digits and starts with 0
+                if (cleaned.length === 10 && cleaned.startsWith('0')) {
+                    return cleaned;
+                }
+
+                // If more than 10 digits, look for a 10 digit substring starting with 0
+                if (cleaned.length > 10) {
+                    const match = cleaned.match(/0\d{9}/);
+                    if (match) return match[0];
+                }
+                return null;
+            };
+
+            // Attempt 1: Replace all @ and o variants with 0
+            let strWithZeros = originalStr.replace(/[@oOôốồổỗộơớờởỡợ]/g, '0');
+            strWithZeros = strWithZeros.replace(/^\s*\./, '0');
+            let finalPhone = extractValidPhone(strWithZeros);
+
+            // Attempt 2: If attempt 1 fails or produces >10 digits without a clear 10 digit winner, try without replacing @/o 
+            // because @ might be an email separator, not a 0.
+            if (!finalPhone) {
+                finalPhone = extractValidPhone(originalStr.replace(/^\s*\./, '0'));
+            }
+
+            if (finalPhone) {
+                decodedNumberEl.value = finalPhone;
+                showToast("Number successfully extracted!");
+            } else {
+                decodedNumberEl.value = "";
+                showToast("No valid phone number found.", "error");
+            }
+        });
+
+        copyPhoneBtn.addEventListener('click', () => {
+            const text = decodedNumberEl.value;
+            if (!text) {
+                showToast("No number to copy!", "error");
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Phone number copied to clipboard!");
+            });
+        });
+
+        // ==========================================
+        // FEATURE 3: KOC ANALYTICS FETCHER
+        // ==========================================
+
+        // Helper: Format number with commas (e.g., 10000 -> 10,000)
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Helper: Format number nicely for metrics (e.g., 1500 -> 1.5k)
+        function formatK(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+            return num.toString();
+        }
+
+        fetchMetricsBtn.addEventListener('click', async () => {
+            const rawInput = kocInputEl.value.trim();
+            if (!rawInput) {
+                showToast("Please enter a TikTok Username or Link.", "error");
+                return;
+            }
+
+            // Extract username for display purposes
+            let username = "Unknown KOC";
+            if (rawInput.includes("tiktok.com") || rawInput.includes("ttp:")) {
+                const match = rawInput.match(/@([a-zA-Z0-9_.-]+)/);
+                if (match) {
+                    username = "@" + match[1];
+                } else {
+                    try {
+                        const urlObj = new URL(rawInput.startsWith("http") ? rawInput : "https://" + rawInput);
+                        const cid = urlObj.searchParams.get("cid");
+                        username = cid ? `ID: ${cid}` : "Link_KOC";
+                    } catch { username = "Link_KOC"; }
+                }
+            } else {
+                username = rawInput.startsWith("@") ? rawInput : "@" + rawInput;
+            }
+
+            // UI Loading State
+            fetchMetricsBtn.disabled = true;
+            fetchIcon.classList.add('hidden');
+            fetchLoader.classList.remove('hidden');
+            fetchBtnText.textContent = "Fetching...";
+
+            try {
+                // Call the FastAPI backend scraper
+                const response = await fetch('http://localhost:8000/api/koc-metrics', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: rawInput })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || result.success === false) {
+                    throw new Error(result.detail || result.error || `Server error (${response.status})`);
+                }
+
+                // Populate metric cards with real scraped data
+                const data = result.data;
+                valGpv.textContent = data.gpm || "N/A";
+                valAvgViews.textContent = data.avg_views || "N/A";
+                valFollowers.textContent = data.followers || "N/A";
+                valItemsSold.textContent = data.items_sold || "N/A";
+
+                // Hide empty state overlay & Enable Copy Button
+                metricsEmptyState.classList.add('hidden');
+                copyRowBtn.disabled = false;
+
+                showToast(`Data fetched for ${username}!`);
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+                showToast(error.message || "Failed to fetch metrics from server.", "error");
+            } finally {
+                // Reset Button State
+                fetchMetricsBtn.disabled = false;
+                fetchLoader.classList.add('hidden');
+                fetchIcon.classList.remove('hidden');
+                fetchBtnText.textContent = "Fetch Metrics";
+            }
+        });
+
+        // Smart Copy Logic
+        copyRowBtn.addEventListener('click', () => {
+            const g = valGpv.textContent;
+            const v = valAvgViews.textContent;
+            const f = valFollowers.textContent;
+            const i = valItemsSold.textContent;
+
+            // Prevent copying default/empty state
+            if (g === "-" || !g) return;
+
+            // Tab-Separated String for Excel/Sheets pasting
+            // Order: GPV Video \t View TB \t Follow \t Đơn
+            const tabSeparatedString = `${g}\t${v}\t${f}\t${i}`;
+
+            navigator.clipboard.writeText(tabSeparatedString).then(() => {
+                showToast("Copied! Ready to paste into Excel/Sheets.");
+            }).catch(() => {
+                showToast("Failed to copy data.", "error");
+            });
+        });
+
+    </script>
+</body>
+
+</html>
