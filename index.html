@@ -77,7 +77,17 @@
 
 <body class="min-h-screen text-slate-800 p-4 md:p-8 flex flex-col items-center">
 
-    <div class="w-full max-w-7xl space-y-8">
+    <div class="w-full max-w-7xl space-y-8 relative pt-12 md:pt-4">
+        
+        <!-- Extension Download Button -->
+        <div class="absolute top-0 right-0 md:top-4 md:right-4 z-50">
+            <a href="corevia-extension.zip" download="Corevia_Extension_Update.zip"
+                class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-brand-600 text-white text-sm font-medium rounded-xl shadow-lg shadow-slate-200/50 transition-all hover:-translate-y-0.5">
+                <i class="fa-solid fa-download"></i>
+                <span>Tải Extension Update</span>
+            </a>
+        </div>
+
         <!-- Header -->
         <header class="text-center space-y-3 mt-4">
             <div class="inline-flex items-center justify-center p-3 bg-brand-50 rounded-2xl mb-2">
@@ -207,7 +217,7 @@
             </div>
 
             <!-- Card 3: KOC Analytics Fetcher (Full Width) -->
-            <div class="glass-panel p-6 rounded-2xl lg:col-span-12 flex flex-col h-full mt-2">
+            <div id="kocFetcherSection" class="glass-panel p-6 rounded-2xl lg:col-span-12 flex flex-col h-full mt-2">
                 <div class="mb-5 pb-4 border-b border-slate-100 flex items-center justify-between">
                     <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
                         <i class="fa-solid fa-chart-line text-purple-500"></i> KOC Analytics Fetcher
@@ -265,11 +275,30 @@
                     </div>
                 </div>
 
-                <!-- Quick Copy Action -->
-                <button id="copyRowBtn" disabled
-                    class="w-full md:w-auto md:mx-auto bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:border-slate-300 disabled:shadow-none text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border border-emerald-600">
-                    <i class="fa-solid fa-file-excel"></i> Copy Row for Sheets
-                </button>
+                <!-- Quick Copy Settings & Action -->
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <!-- Export Options Box -->
+                    <div class="flex flex-col md:flex-row items-center gap-3 md:gap-4 border border-slate-200 bg-slate-50 px-4 py-2.5 rounded-xl w-full md:w-auto">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">PIC:</span>
+                            <input type="text" id="picInput" value="M" placeholder="M" 
+                                class="w-16 px-2 py-1 text-sm font-bold text-slate-800 text-center border border-slate-300 rounded-md focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                        
+                        <div class="w-full md:w-px h-px md:h-6 bg-slate-200"></div>
+                        
+                        <label class="flex items-center gap-2 text-sm font-medium text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
+                            <input type="checkbox" id="addBlankColCheckbox" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-300">
+                            Thêm ô "Loại sản phẩm"
+                        </label>
+                    </div>
+                    
+                    <!-- Copy Button -->
+                    <button id="copyRowBtn" disabled
+                        class="w-full md:w-auto bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:border-slate-300 disabled:shadow-none text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 border border-emerald-600">
+                        <i class="fa-solid fa-file-excel"></i> Copy Row for Sheets
+                    </button>
+                </div>
             </div>
 
         </section>
@@ -748,6 +777,7 @@
         });
 
         // Smart Copy Logic
+        // Sheet Column Order: PIC | Link tiktok | Loại KOC (skip) | TT Liên hệ | GPV Video | View TB | Follow | Đơn
         copyRowBtn.addEventListener('click', () => {
             const g = valGpv.textContent;
             const v = valAvgViews.textContent;
@@ -757,9 +787,103 @@
             // Prevent copying default/empty state
             if (g === "-" || !g) return;
 
+            // PIC = customizable from input field
+            const picInputEl = document.getElementById('picInput');
+            const pic = picInputEl ? (picInputEl.value.trim() || 'M') : 'M';
+
+            // Link TikTok = from the KOC input field
+            const linkTiktok = kocInputEl.value.trim() || "";
+
+            // Loại KOC = empty (skip cell to preserve button in sheet)
+            const loaiKoc = "";
+
+            // TT Liên hệ = extract from contact param or bio decoder
+            // Decode phone numbers and prefix with ' for text format in Sheets
+            let contactRaw = messyBioEl.value.trim();
+            let contactForSheet = "";
+
+            if (contactRaw) {
+                // Try to extract phone number (digits only after basic cleanup)
+                let phoneCandidate = contactRaw;
+
+                // If contact contains "Zalo:" prefix from extension, extract the number part
+                const zaloMatch = contactRaw.match(/Zalo:\s*([0-9,.\s\-+/~]+)/i);
+                const emailMatch = contactRaw.match(/Email:\s*([^\s|]+)/i);
+
+                if (zaloMatch) {
+                    // Clean phone: keep only digits
+                    let phone = zaloMatch[1].trim().split(',')[0].trim().replace(/[\s.\-/~]/g, '');
+                    if (phone.startsWith('+84')) phone = '0' + phone.substring(3);
+                    if (phone.startsWith('84') && phone.length === 11) phone = '0' + phone.substring(2);
+                    if (/^0\d{9}$/.test(phone)) {
+                        contactForSheet = "'" + phone; // Prefix ' to force text format
+                    }
+                } else {
+                    // Try to decode the raw text as a phone number using our decoder logic
+                    let str = contactRaw.normalize('NFKC').toLowerCase();
+                    // Replace 'o' and similar masks
+                    str = str.replace(/[oOôốồổỗộơớờởỡợ]/g, '0');
+                    str = str.replace(/^\s*\./, '0');
+
+                    const replacements = {
+                        'o': '0', 'O': '0', '@': '0', '⓪': '0', 'khum': '0', 'không': '0', 'khong': '0', '✊': '0',
+                        'một': '1', 'mot': '1', '☝️': '1', '➊': '1', '①': '1', '❶': '1', 'I': '1', 'L': '1',
+                        'hai': '2', '✌️': '2', '➋': '2', '②': '2', '❷': '2',
+                        'ba': '3', '🤟': '3', '➌': '3', '③': '3', '❸': '3',
+                        'bốn': '4', 'bon': '4', '➍': '4', '④': '4', '❹': '4',
+                        'năm': '5', 'nam': '5', 'lăm': '5', '🖐️': '5', '✋': '5', '➎': '5', '⑤': '5', '❺': '5',
+                        'sáu': '6', 'sau': '6', '➏': '6', '⑥': '6', '❻': '6',
+                        'bảy': '7', 'bay': '7', 'bẩy': '7', '➐': '7', '⑦': '7', '❼': '7',
+                        'tám': '8', 'tam': '8', '➑': '8', '⑧': '8', '❽': '8',
+                        'chín': '9', 'chin': '9', 'chính': '9', '➒': '9', '⑨': '9', '❾': '9'
+                    };
+                    const sortedKeys = Object.keys(replacements).sort((a, b) => b.length - a.length);
+                    for (const key of sortedKeys) {
+                        const regex = new RegExp(key, 'gi');
+                        str = str.replace(regex, replacements[key]);
+                    }
+                    // Handle Keycaps (e.g., 4️⃣) by stripping variation/combining markers
+                    str = str.replace(/[\uFE0F\u20E3]/g, '');
+
+                    // Use cluster-based extraction for robustness (like the extension)
+                    const potentialClusters = str.match(/(?:(?:\+?84|0)\s*)?(?:\d[\s.,@\-/~]*){9,11}/g) || [];
+                    for (let cluster of potentialClusters) {
+                        let cleaned = cluster.replace(/[^\d]/g, '');
+                        if (cleaned.startsWith('84') && cleaned.length === 11) cleaned = '0' + cleaned.substring(2);
+                        
+                        // Strict: Only prepend 0 to 9-digit numbers if a phone keyword is present
+                        const phoneKeywords = /zalo|sđt|sdt|call|contact|bio|liên hệ|📞|☎️|💼|🤝|job/i;
+                        const hasKeyword = phoneKeywords.test(str);
+
+                        if (cleaned.length === 9 && !cleaned.startsWith('0')) {
+                            if (hasKeyword) cleaned = '0' + cleaned;
+                            else continue;
+                        }
+                        
+                        // Validate final cleaned number
+                        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+                            contactForSheet = "'" + cleaned;
+                            break; // Stop at first valid match
+                        }
+                    }
+                }
+
+                // If no phone found, check for email
+                if (!contactForSheet && emailMatch) {
+                    contactForSheet = emailMatch[1].trim();
+                } else if (!contactForSheet) {
+                    // Try raw email extraction
+                    const rawEmail = contactRaw.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+                    if (rawEmail) {
+                        contactForSheet = rawEmail[0];
+                    }
+                }
+            }
+
             // Tab-Separated String for Excel/Sheets pasting
-            // Order: GPV Video \t View TB \t Follow \t Đơn
-            const tabSeparatedString = `${g}\t${v}\t${f}\t${i}`;
+            // Order: PIC \t Link tiktok \t Loại KOC (skip) \t [Extra Blank if ticked] \t TT Liên hệ \t GPV \t View TB \t Follow \t Đơn
+            const addBlank = document.getElementById('addBlankColCheckbox')?.checked ? "\t" : "";
+            const tabSeparatedString = `${pic}\t${linkTiktok}\t${loaiKoc}${addBlank}\t${contactForSheet}\t${g}\t${v}\t${f}\t${i}`;
 
             navigator.clipboard.writeText(tabSeparatedString).then(() => {
                 showToast("Copied! Ready to paste into Excel/Sheets.");
@@ -767,6 +891,47 @@
                 showToast("Failed to copy data.", "error");
             });
         });
+        // ==========================================
+        // AUTO-FILL FROM URL PARAMS (Chrome Extension)
+        // ==========================================
+        (function autoFillFromUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const gpv = params.get('gpv');
+            const viewTb = params.get('viewTb');
+            const follow = params.get('follow');
+            const don = params.get('don');
+            const link = params.get('link');
+            const contact = params.get('contact');
+
+            // Only auto-fill if at least one metric param exists
+            if (gpv || viewTb || follow || don) {
+                valGpv.textContent = gpv || 'N/A';
+                valAvgViews.textContent = viewTb || 'N/A';
+                valFollowers.textContent = follow || 'N/A';
+                valItemsSold.textContent = don || 'N/A';
+
+                // Hide the empty state overlay & enable copy
+                metricsEmptyState.classList.add('hidden');
+                copyRowBtn.disabled = false;
+
+                // Fill the KOC input with the TikTok link
+                if (link) {
+                    kocInputEl.value = link;
+                }
+
+                // Auto-scroll to the fetcher section
+                setTimeout(() => {
+                    document.getElementById('kocFetcherSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 800);
+
+                showToast("✅ Data từ Extension đã được điền tự động!");
+            }
+
+            // Auto-fill contact info into the bio decoder if provided
+            if (contact) {
+                messyBioEl.value = contact;
+            }
+        })();
 
     </script>
 </body>
